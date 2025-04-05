@@ -1,7 +1,7 @@
 public enum numberBase {
-    BINARY(2),
-    DECIMAL(10),
-    HEX(16);
+    //BINARY(2),
+    DECIMAL(10); //,
+    //HEX(16);
 
     private final int base;
 
