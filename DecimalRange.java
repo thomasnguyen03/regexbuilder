@@ -49,8 +49,12 @@ public class DecimalRange {
     public static List<int[]> splitToRanges(int min, int max) {
         List<int[]> ranges = new ArrayList<>();
 
-        int nines = fillWithNines(min);
-        int zeros = fillWithZeros(max);
+        int i = 1;
+        int j = 1;
+        int nines = fillWithNines(min,i);
+        int zeros = fillWithZeros(max,j);
+        //System.out.println(nines);
+        //System.out.println(zeros);
 
         // Forward scan (min to max)
         while (min <= zeros) {
@@ -59,7 +63,8 @@ public class DecimalRange {
             min = stop + 1;  // Only increment to the next valid range
 
             // Calculate the next 'nines' range boundary
-            nines = fillWithNines(min);
+            i++;
+            nines = fillWithNines(min,i);
 
             // Print for debugging
             //System.out.println("Forward scan - min: " + min + ", stop: " + stop + ", nines: " + nines);
@@ -68,58 +73,35 @@ public class DecimalRange {
         // Backward scan (max to min)
         List<int[]> temp = new ArrayList<>();
         while (min <= max) {
-            int start = fillWithZeros(max);
+            int start = fillWithZeros(max,j);
             temp.add(0, new int[]{Math.max(start, min), max});
             max = start - 1;
 
             // Print for debugging
-            System.out.println("Backward scan - max: " + max + ", start: " + start);
+            //System.out.println("Backward scan - max: " + max + ", start: " + start);
         }
 
         ranges.addAll(temp);
         return ranges;
     }
 
-    private static int fillWithNines(int num) {
+    private static int fillWithNines(int num, int exclude) {
         String s = String.valueOf(num);
-        StringBuilder result = new StringBuilder();
-        boolean foundNonNine = false;
-        result.append(s.charAt(0));
+        exclude = Math.min(exclude, s.length());
+        String part = s.substring(0, s.length() - exclude);
 
-        for (int i = 1; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (foundNonNine) {
-                result.append('9');
-            } else if (c != '9') {
-                result.append('9');
-                foundNonNine = true;
-            } else {
-                result.append(c);
-            }
+        StringBuilder result = new StringBuilder();
+        result.append(part);
+        for (int i = 0; i < exclude; i++) {
+            result.append('9');
         }
 
         return Integer.parseInt(result.toString());
     }
 
-    private static int fillWithZeros(int num) {
-        String s = String.valueOf(num);
-        StringBuilder result = new StringBuilder();
-        boolean foundNonZero = false;
-        result.append(s.charAt(0));
+    private static int fillWithZeros(int num, int exclude) {
 
-        for (int i = 1; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (foundNonZero) {
-                result.append('0');
-            } else if (c != '0') {
-                result.append(c);
-                foundNonZero = true;
-            } else {
-                result.append('0');
-            }
-        }
-
-        return Integer.parseInt(result.toString());
+        return (int)(num - (num % Math.pow(10, exclude)));
     }
 
     public static String wrapPattern(String left, String right, boolean capture, boolean wrap) {
