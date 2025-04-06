@@ -58,13 +58,19 @@ public class DecimalRange {
 
         // Forward scan (min to max)
         while (min <= zeros) {
+            //System.out.println(nines);
             int stop = Math.min(max, nines);
             ranges.add(new int[]{min, stop});
             min = stop + 1;  // Only increment to the next valid range
-
+            if(String.valueOf(min).length()> String.valueOf(stop).length()){
+                nines = fillWithNines(min,i);
+                i++;
+            }
             // Calculate the next 'nines' range boundary
-            i++;
-            nines = fillWithNines(min,i);
+            else {
+                i++;
+                nines = fillWithNines(min,i);
+            }
 
             // Print for debugging
             //System.out.println("Forward scan - min: " + min + ", stop: " + stop + ", nines: " + nines);
