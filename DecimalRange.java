@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DecimalRange {
@@ -13,6 +14,40 @@ public class DecimalRange {
     public String getRegex(){
 
         return "";
+    }
+
+    public static List<RangePattern> splitToPattern(int min, int max, boolean leadingZeros) {
+        int maxLength = String.valueOf(max).length();
+        List<RangePattern> patterns = new ArrayList<>();
+        List<int[]> ranges = splitToRanges(min, max);
+        int start = min;
+        RangePattern prev = null;
+
+        for (int[] range : ranges) {
+            int rangeMax = range[1];
+            RangePattern current = rangeToPattern(String.valueOf(start), String.valueOf(rangeMax), false);
+
+            if (prev != null && prev.getPattern().equals(current.getPattern())) {
+                int[] prevCounts = prev.getCount();
+                if (prevCounts.length > 1) {
+                    prevCounts = Arrays.copyOf(prevCounts, prevCounts.length - 1); // Remove the last count
+                }
+                prevCounts = Arrays.copyOf(prevCounts, prevCounts.length + 1);
+                prevCounts[prevCounts.length - 1] = current.getCount()[0];
+                prev.setOutput(prev.pattern + toQuantifier(prevCounts));
+                patterns.set(patterns.size() - 1, prev);
+            } else {
+                // Create a new RangePattern
+                String zeros = leadingZeros ? padZeros(rangeMax, maxLength, leadingZeros) : "";
+                String patternString = zeros + current.getPattern() + toQuantifier(current.getCount());
+                current.setOutput(patternString);
+                patterns.add(current);
+                prev = current; // Update prev to current
+            }
+            start = rangeMax + 1;
+        }
+
+        return patterns;
     }
 
     public static RangePattern rangeToPattern(String start, String stop, boolean shorthand) {
@@ -38,9 +73,8 @@ public class DecimalRange {
             }
         }
 
-        while (count > 0) {
+        if (count > 0) {
             pattern.append(shorthand ? "\\d" : "[0-9]");
-            count--;
         }
 
         return new RangePattern(pattern.toString(), new int[]{count}, digits);
@@ -147,4 +181,27 @@ public class DecimalRange {
         return pairs;
     }
 
+    public static String toQuantifier(int[] digits) {
+        // Extract start and stop values from the input array with default values
+        int start = digits.length > 0 ? digits[0] : 0; // Default to 0 if array is empty
+        Integer stop = digits.length > 1 ? digits[1] : null; // Use null if no second value
+
+        // Check if quantifier is needed
+        if (stop != null || start > 1) {
+            // Generate the quantifier string
+            return "{" + start + (stop != null ? "," + stop : "") + "}";
+        }
+
+        // Return an empty string if no quantifier is needed
+        return "";
+    }
+    public static String padZeros(int value, int maxLength, boolean shorthand) {
+        int diff = Math.abs(maxLength - String.valueOf(value).length());
+        return switch (diff) {
+            case 0 -> "";
+            case 1 -> shorthand ? "0?" : "0"; // One optional or required zero
+            case 2 -> shorthand ? "0{0,2}" : "00"; // Two optional or required zeros
+            default -> shorthand ? "0{0," + diff + "}" : "0{" + diff + "}"; // More than two zeros
+        };
+    }
 }
