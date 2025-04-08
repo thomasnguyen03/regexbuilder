@@ -10,9 +10,11 @@ public class Tester {
 //        for (int[] range : DecimalRange.splitToRanges(40, 1222)) {
 //            System.out.println(Arrays.toString(range));
 //        }
-        List<RangePattern> patterns = DecimalRange.splitToPattern(40, 1999, true);
-        for (RangePattern pattern : patterns) {
-            System.out.println(pattern.getOutput());
-        }
+//        List<RangePattern> patterns = DecimalRange.splitToPattern(40, 1999, true);
+//        for (RangePattern pattern : patterns) {
+//            System.out.println(pattern.getOutput());
+//        }
+        DecimalRange dr = new DecimalRange(45, 230, false);
+        System.out.println(dr.getRegex());
     }
 }

@@ -26,4 +26,10 @@ public class RangePattern {
     public void setOutput(String output) {
         this.output =output;
     }
+
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (!(obj instanceof RangePattern)) return false;
+//        return !output.isEmpty() && output.equals(((RangePattern)obj).output);
+//    }
 }
