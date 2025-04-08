@@ -11,6 +11,7 @@ public class DecimalRange {
         this.max = end;
         this.leading = leadingZeros;
     }
+    //inspiration from https://github.com/micromatch/to-regex-range
     public String getRegex(){
         if (Math.abs(min - max) == 1) {
             return "(" + min + "|" + max + ")";
