@@ -1,6 +1,4 @@
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class DecimalRange {
     private int min;
@@ -13,22 +11,28 @@ public class DecimalRange {
     }
     //inspiration from https://github.com/micromatch/to-regex-range
     public String getRegex(){
-        if (Math.abs(min - max) == 1) {
-            return "(" + min + "|" + max + ")";
+        if(!leading){
+            if (Math.abs(min - max) == 1) {
+                return "(" + min + "|" + max + ")";
+            }
+
+            List<RangePattern> positives = new ArrayList<>();
+            List<RangePattern> negatives = new ArrayList<>();
+            if(min < 0){
+                int newMin = max < 0 ? Math.abs(max) : 1;
+                negatives = splitToPattern(newMin, Math.abs(min));
+                min = 0;
+            }
+            if (max >= 0){
+                positives = splitToPattern(min, max);
+            }
+
+            return collatePatterns(negatives, positives);
+        }
+        else {
+            return "";
         }
 
-        List<RangePattern> positives = new ArrayList<>();
-        List<RangePattern> negatives = new ArrayList<>();
-        if(min < 0){
-            int newMin = max < 0 ? Math.abs(max) : 1;
-            negatives = splitToPattern(newMin, Math.abs(min), leading);
-            min = 0;
-        }
-        if (max >= 0){
-            positives = splitToPattern(min, max, leading);
-        }
-
-        return collatePatterns(negatives, positives);
     }
 
     private String collatePatterns(
@@ -49,6 +53,7 @@ public class DecimalRange {
         subpatterns.addAll(onlyNegative);
         subpatterns.addAll(intersected);
         subpatterns.addAll(onlyPositive);
+        subpatterns.sort((s1, s2) -> Integer.compare(s2.length(), s1.length()));
 
         // Join with '|'
         return "("+String.join("|", subpatterns)+ ")";
@@ -70,7 +75,7 @@ public class DecimalRange {
 
         return result;
     }
-    public static boolean contains(List<RangePattern> list, String target) {
+    private boolean contains(List<RangePattern> list, String target) {
         for (RangePattern pattern : list) {
             if (pattern.getOutput().equals(target)) {
                 return true;
@@ -79,16 +84,16 @@ public class DecimalRange {
         return false;
     }
 
-    private  List<RangePattern> splitToPattern(int min, int max, boolean leadingZeros) {
+    private List<RangePattern> splitToPattern(int min, int max) {
         int maxLength = String.valueOf(max).length();
         List<RangePattern> patterns = new ArrayList<>();
-        List<int[]> ranges = splitToRanges(min, max);
+        List<Integer> ranges = splitToRanges(min, max);
         int start = min;
         RangePattern prev = null;
 
-        for (int[] range : ranges) {
-            int rangeMax = range[1];
-            RangePattern current = rangeToPattern(String.valueOf(start), String.valueOf(rangeMax), false);
+        for (int range : ranges) {
+            //System.out.println(range);
+            RangePattern current = rangeToPattern(String.valueOf(start), String.valueOf(range), false);
 
             if (prev != null && prev.getPattern().equals(current.getPattern())) {
                 int[] prevCounts = prev.getCount();
@@ -101,19 +106,18 @@ public class DecimalRange {
                 patterns.set(patterns.size() - 1, prev);
             } else {
                 // Create a new RangePattern
-                String zeros = leadingZeros ? padZeros(rangeMax, maxLength, leadingZeros) : "";
-                String patternString = zeros + current.getPattern() + toQuantifier(current.getCount());
+                String patternString = current.getPattern() + toQuantifier(current.getCount());
                 current.setOutput(patternString);
                 patterns.add(current);
                 prev = current; // Update prev to current
             }
-            start = rangeMax + 1;
+            start = range + 1;
         }
 
         return patterns;
     }
 
-    private  RangePattern rangeToPattern(String start, String stop, boolean shorthand) {
+    private RangePattern rangeToPattern(String start, String stop, boolean shorthand) {
         if (start.equals(stop)) {
             return new RangePattern(start, new int[0], 0);
         }
@@ -143,55 +147,40 @@ public class DecimalRange {
         return new RangePattern(pattern.toString(), new int[]{count}, digits);
     }
 
-    private List<int[]> splitToRanges(int min, int max) {
-        List<int[]> ranges = new ArrayList<>();
-
+    private List<Integer> splitToRanges(int min, int max) {
+        Set<Integer> ranges = new HashSet<>();
+        ranges.add(max);
         int i = 1;
         int j = 1;
         int nines = fillWithNines(min,i);
-        int zeros = fillWithZeros(max,j);
         //System.out.println(nines);
         //System.out.println(zeros);
 
-        // Forward scan (min to max)
-        while (min <= zeros) {
+        while (min <= nines && nines <= max) {
             //System.out.println(nines);
-            int stop = Math.min(max, nines);
-            ranges.add(new int[]{min, stop});
-            min = stop + 1;  // Only increment to the next valid range
-            if(String.valueOf(min).length()> String.valueOf(stop).length()){
-                nines = fillWithNines(min,i);
-                i++;
-            }
-            // Calculate the next 'nines' range boundary
-            else {
-                i++;
-                nines = fillWithNines(min,i);
-            }
-
-            // Print for debugging
-            //System.out.println("Forward scan - min: " + min + ", stop: " + stop + ", nines: " + nines);
+            ranges.add(nines);
+            i = i + 1;
+            nines = fillWithNines(min, i);
         }
 
-        // Backward scan (max to min)
-        List<int[]> temp = new ArrayList<>();
-        while (min <= max) {
-            int start = fillWithZeros(max,j);
-            temp.add(0, new int[]{Math.max(start, min), max});
-            max = start - 1;
+
+        int stop = fillWithZeros(max + 1, j) - 1;
+        while (min < stop && stop <= max) {
+            ranges.add(stop);
+            j++;
+            stop = fillWithZeros(max+1, j) - 1;
 
             // Print for debugging
             //System.out.println("Backward scan - max: " + max + ", start: " + start);
         }
-
-        ranges.addAll(temp);
-        return ranges;
+        List<Integer> result = new ArrayList<>(ranges);
+        Collections.sort(result);
+        return result;
     }
 
     private int fillWithNines(int num, int exclude) {
         String s = String.valueOf(num);
-        exclude = Math.min(exclude, s.length());
-        String part = s.substring(0, s.length() - exclude);
+        String part = s.substring(0, Math.max(s.length() - exclude,0));
 
         StringBuilder result = new StringBuilder();
         result.append(part);
@@ -202,7 +191,7 @@ public class DecimalRange {
         return Integer.parseInt(result.toString());
     }
 
-    private  int fillWithZeros(int num, int exclude) {
+    private int fillWithZeros(int num, int exclude) {
 
         return (int)(num - (num % Math.pow(10, exclude)));
     }
@@ -232,7 +221,7 @@ public class DecimalRange {
     }
 
 
-    private  List<char[]> zip(String a, String b) {
+    private List<char[]> zip(String a, String b) {
         int len = Math.max(a.length(), b.length());
         a = String.format("%" + len + "s", a).replace(' ', '0');
         b = String.format("%" + len + "s", b).replace(' ', '0');
@@ -258,13 +247,13 @@ public class DecimalRange {
         // Return an empty string if no quantifier is needed
         return "";
     }
-    private String padZeros(int value, int maxLength, boolean shorthand) {
+    private static String padZeros(int value, int maxLength, boolean shorthand) {
         int diff = Math.abs(maxLength - String.valueOf(value).length());
         return switch (diff) {
             case 0 -> "";
             case 1 -> "0"; // One optional or required zero
-            case 2 -> shorthand ? "0{0,2}" : "00"; // Two optional or required zeros
-            default -> shorthand ? "0{0," + diff + "}" : "0{" + diff + "}"; // More than two zeros
+            case 2 -> shorthand ? "0{2}" : "00"; // Two optional or required zeros
+            default -> "0{" + diff + "}"; // More than two zeros
         };
     }
 }

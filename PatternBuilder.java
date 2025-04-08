@@ -10,7 +10,7 @@ public class PatternBuilder {
         return this;
     }
 
-    public String build() {
+    private String build() {
         return components.stream()
                 .map(PatternComponent::getRegex)
                 .collect(Collectors.joining());
